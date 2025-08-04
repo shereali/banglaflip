@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="bn" class="scroll-smooth">
   <head>
@@ -8,66 +9,25 @@
       defer
       src="https://cdn.jsdelivr.net/npm/grapheme-splitter@1.0.4/index.min.js"
     ></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.tailwindcss.com/3.4.14"></script>
     <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
       import {
-        getFirestore,
-        collection,
-        addDoc,
-        getDocs,
-        doc,
-        getDoc,
-        query,
-        where,
-        Timestamp,
-      } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js";
+        initFirebase,
+        logVisitor,
+        updateStats,
+        handleShare,
+        loadSharedContent,
+      } from "./js/firebase.js";
+      import {
+        animateCounter,
+        phoneticSubstitute,
+        reverseWordPreservePunctuation,
+        attachUIListeners,
+      } from "./js/script.js";
 
-      async function init() {
+      document.addEventListener("DOMContentLoaded", async () => {
         try {
-          const firebaseConfig = {
-            apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
-            authDomain: "bangla-reverse-tool.firebaseapp.com",
-            projectId: "bangla-reverse-tool",
-            storageBucket: "bangla-reverse-tool.appspot.com",
-            messagingSenderId: "585564069992",
-            appId: "1:585564069992:web:6725087dc428f164ca1bdd",
-            measurementId: "G-KBL37R71RN",
-          };
-
-          let db;
-          const app = initializeApp(firebaseConfig);
-          db = getFirestore(app);
-          getAnalytics(app);
-
-          if (!db) {
-            console.error("Firestore not initialized");
-            return;
-          }
-
-          const inputText = document.getElementById("inputText");
-          const outputText = document.getElementById("outputText");
-          const reverseBtn = document.getElementById("reverseBtn");
-          const phoneticBtn = document.getElementById("phoneticBtn");
-          const copyIcon = document.getElementById("copyIcon");
-          const shareBtn = document.getElementById("shareBtn");
-          const copiedTooltip = document.getElementById("copiedTooltip");
-          const sharedTooltip = document.getElementById("sharedTooltip");
-          const pasteBtn = document.getElementById("pasteBtn");
-          const emojiToggleBtn = document.getElementById("emojiToggleBtn");
-          const emojiPicker = document.getElementById("emojiPicker");
-
-          if (!window.GraphemeSplitter) {
-            console.error("GraphemeSplitter not loaded");
-            alert(
-              "টেক্সট প্রসেসিং লাইব্রেরি লোড হয়নি 😢। পুনরায় চেষ্টা করুন।"
-            );
-            return;
-          }
-          const splitter = new GraphemeSplitter();
-          const punctuationRegex = /[.,'’"?!ঃঃ।]/;
-          const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{200D}\u{FE0F}]/u;
+          const db = initFirebase();
 
           const phoneticMap = {
             ক: "খ",
@@ -145,372 +105,63 @@
             গো: "রা",
           };
 
-          function easeOutQuad(t) {
-            return t * (2 - t);
+          const inputText = document.getElementById("inputText");
+          const outputText = document.getElementById("outputText");
+          const reverseBtn = document.getElementById("reverseBtn");
+          const phoneticBtn = document.getElementById("phoneticBtn");
+          const copyIcon = document.getElementById("copyIcon");
+          const shareBtn = document.getElementById("shareBtn");
+          const copiedTooltip = document.getElementById("copiedTooltip");
+          const sharedTooltip = document.getElementById("sharedTooltip");
+          const pasteBtn = document.getElementById("pasteBtn");
+          const emojiToggleBtn = document.getElementById("emojiToggleBtn");
+          const emojiPicker = document.getElementById("emojiPicker");
+          const totalCount = document.getElementById("totalCount");
+          const todayCount = document.getElementById("todayCount");
+          const usedCount = document.getElementById("usedCount");
+
+          if (!window.GraphemeSplitter) {
+            console.error("GraphemeSplitter not loaded");
+            alert(
+              "টেক্সট প্রসেসিং লাইব্রেরি লোড হয়নি 😢। পুনরায় চেষ্টা করুন।"
+            );
+            return;
           }
+          const splitter = new GraphemeSplitter();
+          const punctuationRegex = /[.,'’"?!ঃঃ।]/;
+          const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{200D}\u{FE0F}]/u;
 
-          function animateCounter(element, targetValue) {
-            let currentValue = 0;
-            const duration = 2000; // Animation duration in ms
-            const startTime = performance.now();
-            const update = (currentTime) => {
-              const elapsed = currentTime - startTime;
-              const progress = Math.min(elapsed / duration, 1);
-              const easedProgress = easeOutQuad(progress);
-              currentValue = Math.floor(easedProgress * targetValue);
-              element.textContent = currentValue;
-              if (progress < 1) {
-                requestAnimationFrame(update);
-              } else {
-                element.textContent = targetValue;
-              }
-            };
-            requestAnimationFrame(update);
-          }
-
-          function phoneticSubstitute(graphemes) {
-            const result = [];
-            for (let i = 0; i < graphemes.length; i++) {
-              if (i + 1 < graphemes.length) {
-                const pair = graphemes[i] + graphemes[i + 1];
-                if (phoneticMap[pair]) {
-                  result.push(phoneticMap[pair]);
-                  i++;
-                  continue;
-                }
-              }
-              result.push(phoneticMap[graphemes[i]] || graphemes[i]);
-            }
-            return result;
-          }
-
-          function reverseWordPreservePunctuation(word) {
-            let prefix = "",
-              suffix = "",
-              coreWord = word;
-            while (
-              coreWord.length &&
-              punctuationRegex.test(coreWord[coreWord.length - 1])
-            ) {
-              suffix = coreWord[coreWord.length - 1] + suffix;
-              coreWord = coreWord.slice(0, -1);
-            }
-            while (coreWord.length && punctuationRegex.test(coreWord[0])) {
-              prefix += coreWord[0];
-              coreWord = coreWord.slice(1);
-            }
-            const graphemes = splitter.splitGraphemes(coreWord);
-            const reversedCore = graphemes.reverse().join("");
-            return prefix + reversedCore + suffix;
-          }
-
-          async function logVisitor(toolUsed = null) {
-            if (!db) {
-              console.error("Cannot log visitor: Firestore not initialized");
-              return;
-            }
-            const referrer = document.referrer || "Direct";
-            const timestamp = new Date();
-            const userAgent = navigator.userAgent;
-            try {
-              const visitorPromise = addDoc(collection(db, "visitors"), {
-                referrer,
-                userAgent,
-                toolUsed,
-                timestamp: Timestamp.fromDate(timestamp),
-              });
-              await Promise.race([
-                visitorPromise,
-                new Promise((_, reject) =>
-                  setTimeout(
-                    () => reject(new Error("Firestore timeout")),
-                    10000
-                  )
-                ),
-              ]);
-            } catch (err) {
-              console.error("Failed to log visitor:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-            }
-          }
-
-          async function updateStats() {
-            if (!db) {
-              console.error("Cannot update stats: Firestore not initialized");
-              document.getElementById("totalCount").innerText = "N/A";
-              document.getElementById("todayCount").innerText = "N/A";
-              document.getElementById("usedCount").innerText = "N/A";
-              return;
-            }
-            try {
-              const snapshotPromise = getDocs(collection(db, "visitors"));
-              const snapshot = await Promise.race([
-                snapshotPromise,
-                new Promise((_, reject) =>
-                  setTimeout(
-                    () => reject(new Error("Firestore timeout")),
-                    10000
-                  )
-                ),
-              ]);
-              const totalCount = snapshot.size;
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const todaySnapshotPromise = getDocs(
-                query(
-                  collection(db, "visitors"),
-                  where("timestamp", ">=", Timestamp.fromDate(today))
-                )
-              );
-              const todaySnapshot = await Promise.race([
-                todaySnapshotPromise,
-                new Promise((_, reject) =>
-                  setTimeout(
-                    () => reject(new Error("Firestore timeout")),
-                    10000
-                  )
-                ),
-              ]);
-              animateCounter(document.getElementById("totalCount"), totalCount);
-              animateCounter(
-                document.getElementById("todayCount"),
-                todaySnapshot.size
-              );
-              animateCounter(
-                document.getElementById("usedCount"),
-                todaySnapshot.size
-              );
-            } catch (err) {
-              console.error("Failed to update stats:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-              document.getElementById("totalCount").innerText = "N/A";
-              document.getElementById("todayCount").innerText = "N/A";
-              document.getElementById("usedCount").innerText = "N/A";
-            }
-          }
-
-          async function handleShare() {
-            try {
-              const input = inputText.value.trim();
-              if (!input) {
-                alert("শেয়ার করার জন্য কোনো টেক্সট নেই! 😕");
-                return;
-              }
-              const words = input.split(/\s+/);
-              const reversedWords = words.map((word) =>
-                reverseWordPreservePunctuation(word)
-              );
-              const reversedText = reversedWords.join(" ");
-              if (!db) {
-                alert("Firebase সংযোগে সমস্যা 😢। শেয়ার করা যায়নি।");
-                return;
-              }
-              const shareDoc = await addDoc(collection(db, "shares"), {
-                inputText: input,
-                reversedText: reversedText,
-                timestamp: Timestamp.fromDate(new Date()),
-              });
-              const shareUrl = `${window.location.origin}${window.location.pathname}?shareId=${shareDoc.id}`;
-              await navigator.clipboard.writeText(shareUrl);
-              sharedTooltip.classList.add("opacity-100");
-              setTimeout(
-                () => sharedTooltip.classList.remove("opacity-100"),
-                1500
-              );
-            } catch (err) {
-              console.error("Share failed:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-              alert("শেয়ার করতে ব্যর্থ! 😢");
-            }
-          }
-
-          async function loadSharedContent() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const shareId = urlParams.get("shareId");
-            if (shareId && db) {
-              try {
-                const docRef = doc(db, "shares", shareId);
-                const docSnap = await Promise.race([
-                  getDoc(docRef),
-                  new Promise((_, reject) =>
-                    setTimeout(
-                      () => reject(new Error("Firestore timeout")),
-                      10000
-                    )
-                  ),
-                ]);
-                if (docSnap.exists()) {
-                  const data = docSnap.data();
-                  inputText.value = data.inputText;
-                  outputText.textContent = data.reversedText;
-                } else {
-                  alert("শেয়ার করা টেক্সট পাওয়া যায়নি! 😢");
-                }
-              } catch (err) {
-                console.error("Failed to load shared content:", {
-                  code: err.code || "N/A",
-                  message: err.message || "No error message provided",
-                  error: JSON.stringify(err, null, 2),
-                });
-                alert("শেয়ার করা টেক্সট লোড করতে ব্যর্থ! 😢");
-              }
-            }
-          }
-
-          emojiToggleBtn.addEventListener("click", () => {
-            emojiPicker.classList.toggle("hidden");
-          });
-
-          document.querySelectorAll(".emoji-btn").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              try {
-                const emoji = btn.getAttribute("data-emoji");
-                const startPos = inputText.selectionStart;
-                const endPos = inputText.selectionEnd;
-                const text = inputText.value;
-                inputText.value =
-                  text.substring(0, startPos) + emoji + text.substring(endPos);
-                inputText.selectionStart = inputText.selectionEnd =
-                  startPos + emoji.length;
-                inputText.focus();
-                emojiPicker.classList.add("hidden");
-              } catch (err) {
-                console.error("Emoji insertion failed:", {
-                  code: err.code || "N/A",
-                  message: err.message || "No error message provided",
-                  error: JSON.stringify(err, null, 2),
-                });
-                alert("ইমোজি যুক্ত করতে ব্যর্থ! 😢");
-              }
-            });
-          });
-
-          reverseBtn.addEventListener("click", () => {
-            try {
-              const input = inputText.value.trim();
-              if (!input) {
-                outputText.textContent = "কোনো টেক্সট নেই! 😕";
-                return;
-              }
-              const words = input.split(/\s+/);
-              const reversedWords = words.map((word) =>
-                reverseWordPreservePunctuation(word)
-              );
-              outputText.textContent = reversedWords.join(" ");
-              logVisitor("reverse");
-            } catch (err) {
-              console.error("Reverse failed:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
-            }
-          });
-
-          phoneticBtn.addEventListener("click", () => {
-            try {
-              const input = inputText.value.trim();
-              if (!input) {
-                outputText.textContent = "কোনো টেক্সট নেই! 😕";
-                return;
-              }
-              const graphemes = splitter.splitGraphemes(input);
-              const substituted = phoneticSubstitute(graphemes);
-              outputText.textContent = substituted.join("");
-              logVisitor("phonetic");
-            } catch (err) {
-              console.error("Phonetic conversion failed:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
-            }
-          });
-
-          copyIcon.addEventListener("click", () => {
-            try {
-              let textToCopy = outputText.textContent;
-              if (!textToCopy) {
-                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
-                return;
-              }
-              textToCopy = textToCopy.replace(emojiRegex, "").trim();
-              if (!textToCopy) {
-                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
-                return;
-              }
-              navigator.clipboard
-                .writeText(textToCopy)
-                .then(() => {
-                  copiedTooltip.classList.add("opacity-100");
-                  setTimeout(
-                    () => copiedTooltip.classList.remove("opacity-100"),
-                    1500
-                  );
-                })
-                .catch((err) => {
-                  console.error("Failed to copy:", {
-                    code: err.code || "N/A",
-                    message: err.message || "No error message provided",
-                    error: JSON.stringify(err, null, 2),
-                  });
-                  alert("কপি করতে ব্যর্থ! 😢");
-                });
-            } catch (err) {
-              console.error("Copy failed:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-              alert("কপি করতে ব্যর্থ! 😢");
-            }
-          });
-
-          shareBtn.addEventListener("click", handleShare);
-
-          pasteBtn.addEventListener("click", async () => {
-            try {
-              if (navigator.clipboard && window.isSecureContext) {
-                const text = await navigator.clipboard.readText();
-                inputText.value = text;
-                inputText.focus();
-              } else {
-                const tempInput = document.createElement("textarea");
-                document.body.appendChild(tempInput);
-                tempInput.focus();
-                alert("দয়া করে এখন Ctrl+V চাপুন অথবা Paste করুন 📋");
-                setTimeout(() => {
-                  inputText.value = tempInput.value;
-                  document.body.removeChild(tempInput);
-                  inputText.focus();
-                }, 1000);
-              }
-            } catch (err) {
-              console.error("Paste failed:", {
-                code: err.code || "N/A",
-                message: err.message || "No error message provided",
-                error: JSON.stringify(err, null, 2),
-              });
-              alert(
-                "পেস্ট করতে ব্যর্থ। অনুগ্রহ করে ব্রাউজার অনুমতি দিন বা HTTPS ব্যবহার করুন। 😢"
-              );
-            }
+          attachUIListeners({
+            inputText,
+            outputText,
+            reverseBtn,
+            phoneticBtn,
+            copyIcon,
+            shareBtn,
+            copiedTooltip,
+            sharedTooltip,
+            pasteBtn,
+            emojiToggleBtn,
+            emojiPicker,
+            phoneticMap,
+            splitter,
+            punctuationRegex,
+            emojiRegex,
+            logVisitorCallback: logVisitor,
+            handleShareCallback: () =>
+              handleShare(
+                inputText,
+                outputText,
+                sharedTooltip,
+                reverseWordPreservePunctuation,
+                splitter,
+                punctuationRegex
+              ),
           });
 
           await logVisitor();
-          await updateStats();
-          await loadSharedContent();
+          await updateStats(totalCount, todayCount, usedCount, animateCounter);
+          await loadSharedContent(inputText, outputText);
           document.body.classList.add("loaded");
         } catch (err) {
           console.error("Main script error:", {
@@ -521,9 +172,7 @@
           alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
           document.body.classList.add("loaded");
         }
-      }
-
-      init(); // ✅ Call the async function
+      });
     </script>
     <style>
       body {
@@ -550,10 +199,6 @@
       }
       .counter-circle:hover {
         transform: scale(1.05);
-      }
-      .footer-bg {
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
       }
     </style>
   </head>
@@ -708,9 +353,7 @@
       class="w-full bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-md mt-10"
     >
       <div class="max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
-        <!-- Visitor Stats (Top, Centered) -->
         <div class="flex justify-center flex-wrap gap-4">
-          <!-- Today -->
           <div
             class="flex flex-col items-center bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 rounded-lg p-3 w-24 shadow border border-indigo-300 dark:border-indigo-600 text-center"
           >
@@ -718,8 +361,6 @@
             <span id="todayCount" class="text-base font-bold">0</span>
             <span class="text-indigo-400 dark:text-indigo-300 text-lg">👀</span>
           </div>
-
-          <!-- Total -->
           <div
             class="flex flex-col items-center bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-200 rounded-lg p-3 w-24 shadow border border-emerald-300 dark:border-emerald-600 text-center"
           >
@@ -729,8 +370,6 @@
               >📊</span
             >
           </div>
-
-          <!-- Today's Users -->
           <div
             class="flex flex-col items-center bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200 rounded-lg p-3 w-24 shadow border border-rose-300 dark:border-rose-600 text-center"
           >
@@ -739,12 +378,9 @@
             <span class="text-rose-400 dark:text-rose-300 text-lg">🙋</span>
           </div>
         </div>
-
-        <!-- Main Footer Grid -->
         <div
           class="flex flex-col lg:flex-row justify-between items-start gap-8 w-full"
         >
-          <!-- QR Code Section -->
           <div class="flex flex-col gap-4 w-full lg:w-1/2">
             <h2
               class="text-gray-700 dark:text-gray-200 font-semibold text-base text-center lg:text-left"
@@ -764,8 +400,6 @@
               />
             </div>
           </div>
-
-          <!-- Footer Links & Copyright -->
           <div
             class="flex flex-col gap-4 text-sm w-full lg:w-1/2 items-center lg:items-end"
           >
@@ -794,3 +428,4 @@
     </footer>
   </body>
 </html>
+```
