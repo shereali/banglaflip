@@ -9,14 +9,469 @@
       src="https://cdn.jsdelivr.net/npm/grapheme-splitter@1.0.4/index.min.js"
     ></script>
     <script defer src="https://cdn.tailwindcss.com/3.4.14"></script>
-    <script
-      defer
-      src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"
-    ></script>
-    <script
-      defer
-      src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"
-    ></script>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+      import {
+        getFirestore,
+        collection,
+        addDoc,
+        getDocs,
+        doc,
+        getDoc,
+        query,
+        where,
+        Timestamp,
+      } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+      window.addEventListener("load", async () => {
+        try {
+          const firebaseConfig = {
+            apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
+            authDomain: "bangla-reverse-tool.firebaseapp.com",
+            projectId: "bangla-reverse-tool",
+            storageBucket: "bangla-reverse-tool.firebasestorage.app",
+            messagingSenderId: "585564069992",
+            appId: "1:585564069992:web:6725087dc428f164ca1bdd",
+            measurementId: "G-KBL37R71RN",
+          };
+
+          let db;
+          try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+          } catch (err) {
+            console.error("Firebase initialization failed:", err.message);
+            alert("Firebase সংযোগে সমস্যা 😢। পরে আবার চেষ্টা করুন।");
+            document.getElementById("totalCount").innerText = "N/A";
+            document.getElementById("todayCount").innerText = "N/A";
+            document.getElementById("usedCount").innerText = "N/A";
+          }
+
+          if (!db) {
+            console.error("Firestore not initialized");
+            return;
+          }
+
+          const inputText = document.getElementById("inputText");
+          const outputText = document.getElementById("outputText");
+          const reverseBtn = document.getElementById("reverseBtn");
+          const phoneticBtn = document.getElementById("phoneticBtn");
+          const copyIcon = document.getElementById("copyIcon");
+          const shareBtn = document.getElementById("shareBtn");
+          const copiedTooltip = document.getElementById("copiedTooltip");
+          const sharedTooltip = document.getElementById("sharedTooltip");
+          const pasteBtn = document.getElementById("pasteBtn");
+          const emojiToggleBtn = document.getElementById("emojiToggleBtn");
+          const emojiPicker = document.getElementById("emojiPicker");
+
+          if (!window.GraphemeSplitter) {
+            console.error("GraphemeSplitter not loaded");
+            alert(
+              "টেক্সট প্রসেসিং লাইব্রেরি লোড হয়নি 😢। পুনরায় চেষ্টা করুন।"
+            );
+            return;
+          }
+          const splitter = new GraphemeSplitter();
+          const punctuationRegex = /[.,'’"?!ঃঃ।]/;
+          const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{200D}\u{FE0F}]/u;
+
+          const phoneticMap = {
+            ক: "খ",
+            খ: "ক",
+            গ: "ঘ",
+            ঘ: "গ",
+            চ: "ছ",
+            ছ: "চ",
+            জ: "ঝ",
+            ঝ: "জ",
+            ট: "ঠ",
+            ঠ: "ট",
+            ড: "ঢ",
+            ঢ: "ড",
+            ত: "থ",
+            থ: "ত",
+            দ: "ধ",
+            ধ: "দ",
+            ন: "ণ",
+            ণ: "ন",
+            প: "ফ",
+            ফ: "প",
+            ব: "ভ",
+            ভ: "ব",
+            ম: "ং",
+            "ং": "ম",
+            স: "শ",
+            শ: "স",
+            ষ: "স",
+            য: "য়",
+            য়: "য",
+            র: "ড়",
+            ড়: "র",
+            ঢ়: "ড়",
+            হ: "ঃ",
+            "ঃ": "হ",
+            ঙ: "ং",
+            ৎ: "ত",
+            অ: "আ",
+            আ: "অ",
+            ই: "ঈ",
+            ঈ: "ই",
+            উ: "ঊ",
+            ঊ: "উ",
+            এ: "ঐ",
+            ঐ: "এ",
+            ও: "ঔ",
+            ঔ: "ও",
+            "া": "ি",
+            "ি": "া",
+            "ী": "ু",
+            "ু": "ী",
+            "ূ": "ে",
+            "ে": "ূ",
+            "ৈ": "ো",
+            "ো": "ৈ",
+            "ৌ": "ঔ",
+            ক্ষ: "ক্স",
+            ক্স: "ক্ষ",
+            জ্ঞ: "জ্ন",
+            জ্ন: "জ্ঞ",
+            ত্র: "ত্ৰ",
+            ত্ৰ: "ত্র",
+            শ্র: "ষ্র",
+            ষ্র: "শ্র",
+            "্য": "য়",
+            য়: "্য",
+            "্র": "র",
+            "্": "",
+            "িয়ে": "িয়া",
+            "িয়া": "িয়ে",
+            তে: "টা",
+            টা: "তে",
+            রা: "গো",
+            গো: "রা",
+          };
+
+          function easeOutQuad(t) {
+            return t * (2 - t);
+          }
+
+          function animateCounter(element, targetValue) {
+            let currentValue = 0;
+            const duration = 2000; // Animation duration in ms
+            const startTime = performance.now();
+            const update = (currentTime) => {
+              const elapsed = currentTime - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const easedProgress = easeOutQuad(progress);
+              currentValue = Math.floor(easedProgress * targetValue);
+              element.textContent = currentValue;
+              if (progress < 1) {
+                requestAnimationFrame(update);
+              } else {
+                element.textContent = targetValue;
+              }
+            };
+            requestAnimationFrame(update);
+          }
+
+          function phoneticSubstitute(graphemes) {
+            const result = [];
+            for (let i = 0; i < graphemes.length; i++) {
+              if (i + 1 < graphemes.length) {
+                const pair = graphemes[i] + graphemes[i + 1];
+                if (phoneticMap[pair]) {
+                  result.push(phoneticMap[pair]);
+                  i++;
+                  continue;
+                }
+              }
+              result.push(phoneticMap[graphemes[i]] || graphemes[i]);
+            }
+            return result;
+          }
+
+          function reverseWordPreservePunctuation(word) {
+            let prefix = "",
+              suffix = "",
+              coreWord = word;
+            while (
+              coreWord.length &&
+              punctuationRegex.test(coreWord[coreWord.length - 1])
+            ) {
+              suffix = coreWord[coreWord.length - 1] + suffix;
+              coreWord = coreWord.slice(0, -1);
+            }
+            while (coreWord.length && punctuationRegex.test(coreWord[0])) {
+              prefix += coreWord[0];
+              coreWord = coreWord.slice(1);
+            }
+            const graphemes = splitter.splitGraphemes(coreWord);
+            const reversedCore = graphemes.reverse().join("");
+            return prefix + reversedCore + suffix;
+          }
+
+          async function logVisitor(toolUsed = null) {
+            if (!db) return;
+            const referrer = document.referrer || "Direct";
+            const timestamp = new Date();
+            const userAgent = navigator.userAgent;
+            try {
+              const visitorPromise = addDoc(collection(db, "visitors"), {
+                referrer,
+                userAgent,
+                toolUsed,
+                timestamp: Timestamp.fromDate(timestamp),
+              });
+              await Promise.race([
+                visitorPromise,
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                ),
+              ]);
+            } catch (err) {
+              console.error("Failed to log visitor:", err.message);
+            }
+          }
+
+          async function updateStats() {
+            if (!db) {
+              document.getElementById("totalCount").innerText = "N/A";
+              document.getElementById("todayCount").innerText = "N/A";
+              document.getElementById("usedCount").innerText = "N/A";
+              return;
+            }
+            try {
+              const snapshotPromise = getDocs(collection(db, "visitors"));
+              const snapshot = await Promise.race([
+                snapshotPromise,
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                ),
+              ]);
+              const totalCount = snapshot.size;
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const todaySnapshotPromise = getDocs(
+                query(
+                  collection(db, "visitors"),
+                  where("timestamp", ">=", Timestamp.fromDate(today))
+                )
+              );
+              const todaySnapshot = await Promise.race([
+                todaySnapshotPromise,
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                ),
+              ]);
+              animateCounter(document.getElementById("totalCount"), totalCount);
+              animateCounter(
+                document.getElementById("todayCount"),
+                todaySnapshot.size
+              );
+              animateCounter(
+                document.getElementById("usedCount"),
+                todaySnapshot.size
+              );
+            } catch (err) {
+              console.error("Failed to update stats:", err.message);
+              document.getElementById("totalCount").innerText = "N/A";
+              document.getElementById("todayCount").innerText = "N/A";
+              document.getElementById("usedCount").innerText = "N/A";
+            }
+          }
+
+          async function handleShare() {
+            try {
+              const input = inputText.value.trim();
+              if (!input) {
+                alert("শেয়ার করার জন্য কোনো টেক্সট নেই! 😕");
+                return;
+              }
+              const words = input.split(/\s+/);
+              const reversedWords = words.map((word) =>
+                reverseWordPreservePunctuation(word)
+              );
+              const reversedText = reversedWords.join(" ");
+              if (!db) {
+                alert("Firebase সংযোগে সমস্যা 😢। শেয়ার করা যায়নি।");
+                return;
+              }
+              const shareDoc = await addDoc(collection(db, "shares"), {
+                inputText: input,
+                reversedText: reversedText,
+                timestamp: Timestamp.fromDate(new Date()),
+              });
+              const shareUrl = `${window.location.origin}${window.location.pathname}?shareId=${shareDoc.id}`;
+              await navigator.clipboard.writeText(shareUrl);
+              sharedTooltip.classList.add("opacity-100");
+              setTimeout(
+                () => sharedTooltip.classList.remove("opacity-100"),
+                1500
+              );
+            } catch (err) {
+              console.error("Share failed:", err.message);
+              alert("শেয়ার করতে ব্যর্থ! 😢");
+            }
+          }
+
+          async function loadSharedContent() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get("shareId");
+            if (shareId && db) {
+              try {
+                const docRef = doc(db, "shares", shareId);
+                const docSnap = await Promise.race([
+                  getDoc(docRef),
+                  new Promise((_, reject) =>
+                    setTimeout(
+                      () => reject(new Error("Firestore timeout")),
+                      5000
+                    )
+                  ),
+                ]);
+                if (docSnap.exists()) {
+                  const data = docSnap.data();
+                  inputText.value = data.inputText;
+                  outputText.textContent = data.reversedText;
+                } else {
+                  alert("শেয়ার করা টেক্সট পাওয়া যায়নি! 😢");
+                }
+              } catch (err) {
+                console.error("Failed to load shared content:", err.message);
+                alert("শেয়ার করা টেক্সট লোড করতে ব্যর্থ! 😢");
+              }
+            }
+          }
+
+          emojiToggleBtn.addEventListener("click", () => {
+            emojiPicker.classList.toggle("hidden");
+          });
+
+          document.querySelectorAll(".emoji-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              try {
+                const emoji = btn.getAttribute("data-emoji");
+                const startPos = inputText.selectionStart;
+                const endPos = inputText.selectionEnd;
+                const text = inputText.value;
+                inputText.value =
+                  text.substring(0, startPos) + emoji + text.substring(endPos);
+                inputText.selectionStart = inputText.selectionEnd =
+                  startPos + emoji.length;
+                inputText.focus();
+                emojiPicker.classList.add("hidden");
+              } catch (err) {
+                console.error("Emoji insertion failed:", err);
+                alert("ইমোজি যুক্ত করতে ব্যর্থ! 😢");
+              }
+            });
+          });
+
+          reverseBtn.addEventListener("click", () => {
+            try {
+              const input = inputText.value.trim();
+              if (!input) {
+                outputText.textContent = "কোনো টেক্সট নেই! 😕";
+                return;
+              }
+              const words = input.split(/\s+/);
+              const reversedWords = words.map((word) =>
+                reverseWordPreservePunctuation(word)
+              );
+              outputText.textContent = reversedWords.join(" ");
+              logVisitor("reverse");
+            } catch (err) {
+              console.error("Reverse failed:", err);
+              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
+            }
+          });
+
+          phoneticBtn.addEventListener("click", () => {
+            try {
+              const input = inputText.value.trim();
+              if (!input) {
+                outputText.textContent = "কোনো টেক্সট নেই! 😕";
+                return;
+              }
+              const graphemes = splitter.splitGraphemes(input);
+              const substituted = phoneticSubstitute(graphemes);
+              outputText.textContent = substituted.join("");
+              logVisitor("phonetic");
+            } catch (err) {
+              console.error("Phonetic conversion failed:", err);
+              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
+            }
+          });
+
+          copyIcon.addEventListener("click", () => {
+            try {
+              let textToCopy = outputText.textContent;
+              if (!textToCopy) {
+                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
+                return;
+              }
+              textToCopy = textToCopy.replace(emojiRegex, "").trim();
+              if (!textToCopy) {
+                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
+                return;
+              }
+              navigator.clipboard
+                .writeText(textToCopy)
+                .then(() => {
+                  copiedTooltip.classList.add("opacity-100");
+                  setTimeout(
+                    () => copiedTooltip.classList.remove("opacity-100"),
+                    1500
+                  );
+                })
+                .catch((err) => {
+                  console.error("Failed to copy:", err);
+                  alert("কপি করতে ব্যর্থ! 😢");
+                });
+            } catch (err) {
+              console.error("Copy failed:", err);
+              alert("কপি করতে ব্যর্থ! 😢");
+            }
+          });
+
+          shareBtn.addEventListener("click", handleShare);
+
+          pasteBtn.addEventListener("click", async () => {
+            try {
+              if (navigator.clipboard && window.isSecureContext) {
+                const text = await navigator.clipboard.readText();
+                inputText.value = text;
+                inputText.focus();
+              } else {
+                const tempInput = document.createElement("textarea");
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                alert("দয়া করে এখন Ctrl+V চাপুন অথবা Paste করুন 📋");
+                setTimeout(() => {
+                  inputText.value = tempInput.value;
+                  document.body.removeChild(tempInput);
+                  inputText.focus();
+                }, 1000);
+              }
+            } catch (err) {
+              console.error("Paste failed:", err);
+              alert(
+                "পেস্ট করতে ব্যর্থ। অনুগ্রহ করে ব্রাউজার অনুমতি দিন বা HTTPS ব্যবহার করুন। 😢"
+              );
+            }
+          });
+
+          await logVisitor();
+          await updateStats();
+          await loadSharedContent();
+          document.body.classList.add("loaded");
+        } catch (err) {
+          console.error("Main script error:", err);
+          alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
+          document.body.classList.add("loaded");
+        }
+      });
+    </script>
     <style>
       body {
         opacity: 0;
@@ -284,458 +739,5 @@
         </div>
       </div>
     </footer>
-
-    <script>
-      window.addEventListener("load", () => {
-        try {
-          const firebaseConfig = {
-            apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
-            authDomain: "bangla-reverse-tool.firebaseapp.com",
-            projectId: "bangla-reverse-tool",
-            storageBucket: "bangla-reverse-tool.firebasestorage.app",
-            messagingSenderId: "585564069992",
-            appId: "1:585564069992:web:6725087dc428f164ca1bdd",
-            measurementId: "G-KBL37R71RN",
-          };
-
-          let db;
-          try {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-          } catch (err) {
-            console.error("Firebase initialization failed:", err);
-            alert("Firebase সংযোগে সমস্যা 😢। পরে আবার চেষ্টা করুন।");
-            document.getElementById("totalCount").innerText = "N/A";
-            document.getElementById("todayCount").innerText = "N/A";
-            document.getElementById("usedCount").innerText = "N/A";
-          }
-
-          const inputText = document.getElementById("inputText");
-          const outputText = document.getElementById("outputText");
-          const reverseBtn = document.getElementById("reverseBtn");
-          const phoneticBtn = document.getElementById("phoneticBtn");
-          const copyIcon = document.getElementById("copyIcon");
-          const shareBtn = document.getElementById("shareBtn");
-          const copiedTooltip = document.getElementById("copiedTooltip");
-          const sharedTooltip = document.getElementById("sharedTooltip");
-          const pasteBtn = document.getElementById("pasteBtn");
-          const emojiToggleBtn = document.getElementById("emojiToggleBtn");
-          const emojiPicker = document.getElementById("emojiPicker");
-
-          if (!window.GraphemeSplitter) {
-            console.error("GraphemeSplitter not loaded");
-            alert(
-              "টেক্সট প্রসেসিং লাইব্রেরি লোড হয়নি 😢। পুনরায় চেষ্টা করুন।"
-            );
-            return;
-          }
-          const splitter = new GraphemeSplitter();
-          const punctuationRegex = /[.,'’"?!ঃঃ।]/;
-          const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{200D}\u{FE0F}]/u;
-
-          const phoneticMap = {
-            ক: "খ",
-            খ: "ক",
-            গ: "ঘ",
-            ঘ: "গ",
-            চ: "ছ",
-            ছ: "চ",
-            জ: "ঝ",
-            ঝ: "জ",
-            ট: "ঠ",
-            ঠ: "ট",
-            ড: "ঢ",
-            ঢ: "ড",
-            ত: "থ",
-            থ: "ত",
-            দ: "ধ",
-            ধ: "দ",
-            ন: "ণ",
-            ণ: "ন",
-            প: "ফ",
-            ফ: "প",
-            ব: "ভ",
-            ভ: "ব",
-            ম: "ং",
-            "ং": "ম",
-            স: "শ",
-            শ: "স",
-            ষ: "স",
-            য: "য়",
-            য়: "য",
-            র: "ড়",
-            ড়: "র",
-            ঢ়: "ড়",
-            হ: "ঃ",
-            "ঃ": "হ",
-            ঙ: "ং",
-            ৎ: "ত",
-
-            অ: "আ",
-            আ: "অ",
-            ই: "ঈ",
-            ঈ: "ই",
-            উ: "ঊ",
-            ঊ: "উ",
-            এ: "ঐ",
-            ঐ: "এ",
-            ও: "ঔ",
-            ঔ: "ও",
-
-            "া": "ি",
-            "ি": "া",
-            "ী": "ু",
-            "ু": "ী",
-            "ূ": "ে",
-            "ে": "ূ",
-            "ৈ": "ো",
-            "ো": "ৈ",
-            "ৌ": "ঔ",
-
-            ক্ষ: "ক্স",
-            ক্স: "ক্ষ",
-            জ্ঞ: "জ্ন",
-            জ্ন: "জ্ঞ",
-            ত্র: "ত্ৰ",
-            ত্ৰ: "ত্র",
-            শ্র: "ষ্র",
-            ষ্র: "শ্র",
-
-            "্য": "য়",
-            য়: "্য",
-            "্র": "র",
-            "্": "",
-
-            "িয়ে": "িয়া",
-            "িয়া": "িয়ে",
-            তে: "টা",
-            টা: "তে",
-            রা: "গো",
-            গো: "রা",
-          };
-
-          function easeOutQuad(t) {
-            return t * (2 - t);
-          }
-
-          function animateCounter(element, targetValue) {
-            let currentValue = 0;
-            const duration = 2000; // Animation duration in ms
-            const startTime = performance.now();
-            const update = (currentTime) => {
-              const elapsed = currentTime - startTime;
-              const progress = Math.min(elapsed / duration, 1);
-              const easedProgress = easeOutQuad(progress);
-              currentValue = Math.floor(easedProgress * targetValue);
-              element.textContent = currentValue;
-              if (progress < 1) {
-                requestAnimationFrame(update);
-              } else {
-                element.textContent = targetValue;
-              }
-            };
-            requestAnimationFrame(update);
-          }
-
-          function phoneticSubstitute(graphemes) {
-            const result = [];
-            for (let i = 0; i < graphemes.length; i++) {
-              if (i + 1 < graphemes.length) {
-                const pair = graphemes[i] + graphemes[i + 1];
-                if (phoneticMap[pair]) {
-                  result.push(phoneticMap[pair]);
-                  i++;
-                  continue;
-                }
-              }
-              result.push(phoneticMap[graphemes[i]] || graphemes[i]);
-            }
-            return result;
-          }
-
-          function reverseWordPreservePunctuation(word) {
-            let prefix = "",
-              suffix = "",
-              coreWord = word;
-            while (
-              coreWord.length &&
-              punctuationRegex.test(coreWord[coreWord.length - 1])
-            ) {
-              suffix = coreWord[coreWord.length - 1] + suffix;
-              coreWord = coreWord.slice(0, -1);
-            }
-            while (coreWord.length && punctuationRegex.test(coreWord[0])) {
-              prefix += coreWord[0];
-              coreWord = coreWord.slice(1);
-            }
-            const graphemes = splitter.splitGraphemes(coreWord);
-            const reversedCore = graphemes.reverse().join("");
-            return prefix + reversedCore + suffix;
-          }
-
-          async function logVisitor(toolUsed = null) {
-            if (!db) return;
-            const referrer = document.referrer || "Direct";
-            const timestamp = new Date();
-            const userAgent = navigator.userAgent;
-            try {
-              const visitorPromise = db.collection("visitors").add({
-                referrer,
-                userAgent,
-                toolUsed,
-                timestamp: firebase.firestore.Timestamp.fromDate(timestamp),
-              });
-              await Promise.race([
-                visitorPromise,
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
-                ),
-              ]);
-            } catch (err) {
-              console.error("Failed to log visitor:", err);
-            }
-          }
-
-          async function updateStats() {
-            if (!db) {
-              document.getElementById("totalCount").innerText = "N/A";
-              document.getElementById("todayCount").innerText = "N/A";
-              document.getElementById("usedCount").innerText = "N/A";
-              return;
-            }
-            try {
-              const snapshotPromise = db.collection("visitors").get();
-              const snapshot = await Promise.race([
-                snapshotPromise,
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
-                ),
-              ]);
-              const totalCount = snapshot.size;
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              const todaySnapshotPromise = db
-                .collection("visitors")
-                .where(
-                  "timestamp",
-                  ">=",
-                  firebase.firestore.Timestamp.fromDate(today)
-                )
-                .get();
-              const todaySnapshot = await Promise.race([
-                todaySnapshotPromise,
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
-                ),
-              ]);
-              animateCounter(document.getElementById("totalCount"), totalCount);
-              animateCounter(
-                document.getElementById("todayCount"),
-                todaySnapshot.size
-              );
-              animateCounter(
-                document.getElementById("usedCount"),
-                todaySnapshot.size
-              );
-            } catch (err) {
-              console.error("Failed to update stats:", err);
-              document.getElementById("totalCount").innerText = "N/A";
-              document.getElementById("todayCount").innerText = "N/A";
-              document.getElementById("usedCount").innerText = "N/A";
-            }
-          }
-
-          async function handleShare() {
-            try {
-              const input = inputText.value.trim();
-              if (!input) {
-                alert("শেয়ার করার জন্য কোনো টেক্সট নেই! 😕");
-                return;
-              }
-              const words = input.split(/\s+/);
-              const reversedWords = words.map((word) =>
-                reverseWordPreservePunctuation(word)
-              );
-              const reversedText = reversedWords.join(" ");
-              if (!db) {
-                alert("Firebase সংযোগে সমস্যা 😢। শেয়ার করা যায়নি।");
-                return;
-              }
-              const shareDoc = await db.collection("shares").add({
-                inputText: input,
-                reversedText: reversedText,
-                timestamp: firebase.firestore.Timestamp.fromDate(new Date()),
-              });
-              const shareUrl = `${window.location.origin}${window.location.pathname}?shareId=${shareDoc.id}`;
-              await navigator.clipboard.writeText(shareUrl);
-              sharedTooltip.classList.add("opacity-100");
-              setTimeout(
-                () => sharedTooltip.classList.remove("opacity-100"),
-                1500
-              );
-            } catch (err) {
-              console.error("Share failed:", err);
-              alert("শেয়ার করতে ব্যর্থ! 😢");
-            }
-          }
-
-          async function loadSharedContent() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const shareId = urlParams.get("shareId");
-            if (shareId && db) {
-              try {
-                const docRef = db.collection("shares").doc(shareId);
-                const docSnap = await Promise.race([
-                  docRef.get(),
-                  new Promise((_, reject) =>
-                    setTimeout(
-                      () => reject(new Error("Firestore timeout")),
-                      5000
-                    )
-                  ),
-                ]);
-                if (docSnap.exists) {
-                  const data = docSnap.data();
-                  inputText.value = data.inputText;
-                  outputText.textContent = data.reversedText;
-                } else {
-                  alert("শেয়ার করা টেক্সট পাওয়া যায়নি! 😢");
-                }
-              } catch (err) {
-                console.error("Failed to load shared content:", err);
-                alert("শেয়ার করা টেক্সট লোড করতে ব্যর্থ! 😢");
-              }
-            }
-          }
-
-          emojiToggleBtn.addEventListener("click", () => {
-            emojiPicker.classList.toggle("hidden");
-          });
-
-          document.querySelectorAll(".emoji-btn").forEach((btn) => {
-            btn.addEventListener("click", () => {
-              try {
-                const emoji = btn.getAttribute("data-emoji");
-                const startPos = inputText.selectionStart;
-                const endPos = inputText.selectionEnd;
-                const text = inputText.value;
-                inputText.value =
-                  text.substring(0, startPos) + emoji + text.substring(endPos);
-                inputText.selectionStart = inputText.selectionEnd =
-                  startPos + emoji.length;
-                inputText.focus();
-                emojiPicker.classList.add("hidden");
-              } catch (err) {
-                console.error("Emoji insertion failed:", err);
-                alert("ইমোজি যুক্ত করতে ব্যর্থ! 😢");
-              }
-            });
-          });
-
-          reverseBtn.addEventListener("click", () => {
-            try {
-              const input = inputText.value.trim();
-              if (!input) {
-                outputText.textContent = "কোনো টেক্সট নেই! 😕";
-                return;
-              }
-              const words = input.split(/\s+/);
-              const reversedWords = words.map((word) =>
-                reverseWordPreservePunctuation(word)
-              );
-              outputText.textContent = reversedWords.join(" ");
-              logVisitor("reverse");
-            } catch (err) {
-              console.error("Reverse failed:", err);
-              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
-            }
-          });
-
-          phoneticBtn.addEventListener("click", () => {
-            try {
-              const input = inputText.value.trim();
-              if (!input) {
-                outputText.textContent = "কোনো টেক্সট নেই! 😕";
-                return;
-              }
-              const graphemes = splitter.splitGraphemes(input);
-              const substituted = phoneticSubstitute(graphemes);
-              outputText.textContent = substituted.join("");
-              logVisitor("phonetic");
-            } catch (err) {
-              console.error("Phonetic conversion failed:", err);
-              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
-            }
-          });
-
-          copyIcon.addEventListener("click", () => {
-            try {
-              let textToCopy = outputText.textContent;
-              if (!textToCopy) {
-                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
-                return;
-              }
-              textToCopy = textToCopy.replace(emojiRegex, "").trim();
-              if (!textToCopy) {
-                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
-                return;
-              }
-              navigator.clipboard
-                .writeText(textToCopy)
-                .then(() => {
-                  copiedTooltip.classList.add("opacity-100");
-                  setTimeout(
-                    () => copiedTooltip.classList.remove("opacity-100"),
-                    1500
-                  );
-                })
-                .catch((err) => {
-                  console.error("Failed to copy:", err);
-                  alert("কপি করতে ব্যর্থ! 😢");
-                });
-            } catch (err) {
-              console.error("Copy failed:", err);
-              alert("কপি করতে ব্যর্থ! 😢");
-            }
-          });
-
-          shareBtn.addEventListener("click", handleShare);
-
-          pasteBtn.addEventListener("click", async () => {
-            try {
-              if (navigator.clipboard && window.isSecureContext) {
-                const text = await navigator.clipboard.readText();
-                inputText.value = text;
-                inputText.focus();
-              } else {
-                const tempInput = document.createElement("textarea");
-                document.body.appendChild(tempInput);
-                tempInput.focus();
-                alert("দয়া করে এখন Ctrl+V চাপুন অথবা Paste করুন 📋");
-                setTimeout(() => {
-                  inputText.value = tempInput.value;
-                  document.body.removeChild(tempInput);
-                  inputText.focus();
-                }, 1000);
-              }
-            } catch (err) {
-              console.error("Paste failed:", err);
-              alert(
-                "পেস্ট করতে ব্যর্থ। অনুগ্রহ করে ব্রাউজার অনুমতি দিন বা HTTPS ব্যবহার করুন। 😢"
-              );
-            }
-          });
-
-          logVisitor();
-          updateStats();
-          loadSharedContent();
-          document.body.classList.add("loaded");
-        } catch (err) {
-          console.error("Main script error:", err);
-          alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
-          document.body.classList.add("loaded");
-        }
-      });
-    </script>
   </body>
 </html>
