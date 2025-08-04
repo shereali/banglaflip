@@ -8,10 +8,11 @@
       defer
       src="https://cdn.jsdelivr.net/npm/grapheme-splitter@1.0.4/index.min.js"
     ></script>
-    <script defer src="https://cdn.tailwindcss.com/3.4.14"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js";
+      import { initializeFirestore } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
       import {
         getFirestore,
         collection,
@@ -24,7 +25,7 @@
         Timestamp,
       } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-      document.addEventListener("DOMContentLoaded", async () => {
+      (async () => {
         try {
           const firebaseConfig = {
             apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
@@ -39,13 +40,18 @@
           let db;
           try {
             const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
+            initializeFirestore(app, {
+              experimentalForceLongPolling: true,
+            });
+
+            db = getFirestore(app); // You still need this to get the Firestore instance
+
             getAnalytics(app); // Initialize Analytics (not actively used)
           } catch (err) {
             console.error("Firebase initialization failed:", {
               code: err.code || "N/A",
               message: err.message || "No error message provided",
-              error: err,
+              error: JSON.stringify(err, null, 2),
             });
             alert("Firebase সংযোগে সমস্যা 😢। পরে আবার চেষ্টা করুন।");
             document.getElementById("totalCount").innerText = "N/A";
@@ -244,7 +250,7 @@
               console.error("Failed to log visitor:", {
                 code: err.code || "N/A",
                 message: err.message || "No error message provided",
-                error: err,
+                error: JSON.stringify(err, null, 2),
               });
             }
           }
@@ -339,7 +345,7 @@
               console.error("Share failed:", {
                 code: err.code || "N/A",
                 message: err.message || "No error message provided",
-                error: err,
+                error: JSON.stringify(err, null, 2),
               });
               alert("শেয়ার করতে ব্যর্থ! 😢");
             }
@@ -371,7 +377,7 @@
                 console.error("Failed to load shared content:", {
                   code: err.code || "N/A",
                   message: err.message || "No error message provided",
-                  error: err,
+                  error: JSON.stringify(err, null, 2),
                 });
                 alert("শেয়ার করা টেক্সট লোড করতে ব্যর্থ! 😢");
               }
@@ -399,7 +405,7 @@
                 console.error("Emoji insertion failed:", {
                   code: err.code || "N/A",
                   message: err.message || "No error message provided",
-                  error: err,
+                  error: JSON.stringify(err, null, 2),
                 });
                 alert("ইমোজি যুক্ত করতে ব্যর্থ! 😢");
               }
@@ -423,7 +429,7 @@
               console.error("Reverse failed:", {
                 code: err.code || "N/A",
                 message: err.message || "No error message provided",
-                error: err,
+                error: JSON.stringify(err, null, 2),
               });
               outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
             }
@@ -444,7 +450,7 @@
               console.error("Phonetic conversion failed:", {
                 code: err.code || "N/A",
                 message: err.message || "No error message provided",
-                error: err,
+                error: JSON.stringify(err, null, 2),
               });
               outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
             }
@@ -475,7 +481,7 @@
                   console.error("Failed to copy:", {
                     code: err.code || "N/A",
                     message: err.message || "No error message provided",
-                    error: err,
+                    error: JSON.stringify(err, null, 2),
                   });
                   alert("কপি করতে ব্যর্থ! 😢");
                 });
@@ -483,7 +489,7 @@
               console.error("Copy failed:", {
                 code: err.code || "N/A",
                 message: err.message || "No error message provided",
-                error: err,
+                error: JSON.stringify(err, null, 2),
               });
               alert("কপি করতে ব্যর্থ! 😢");
             }
@@ -512,7 +518,7 @@
               console.error("Paste failed:", {
                 code: err.code || "N/A",
                 message: err.message || "No error message provided",
-                error: err,
+                error: JSON.stringify(err, null, 2),
               });
               alert(
                 "পেস্ট করতে ব্যর্থ। অনুগ্রহ করে ব্রাউজার অনুমতি দিন বা HTTPS ব্যবহার করুন। 😢"
@@ -528,12 +534,12 @@
           console.error("Main script error:", {
             code: err.code || "N/A",
             message: err.message || "No error message provided",
-            error: err,
+            error: JSON.stringify(err, null, 2),
           });
           alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
           document.body.classList.add("loaded");
         }
-      });
+      })();
     </script>
     <style>
       body {
