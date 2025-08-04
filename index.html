@@ -11,8 +11,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-      import { initializeFirestore } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-
       import {
         getFirestore,
         collection,
@@ -24,40 +22,24 @@
         where,
         Timestamp,
       } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js";
 
-      (async () => {
+      async function init() {
         try {
           const firebaseConfig = {
             apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
             authDomain: "bangla-reverse-tool.firebaseapp.com",
             projectId: "bangla-reverse-tool",
-            storageBucket: "bangla-reverse-tool.firebasestorage.app",
+            storageBucket: "bangla-reverse-tool.appspot.com",
             messagingSenderId: "585564069992",
             appId: "1:585564069992:web:6725087dc428f164ca1bdd",
             measurementId: "G-KBL37R71RN",
           };
 
           let db;
-          try {
-            const app = initializeApp(firebaseConfig);
-            initializeFirestore(app, {
-              experimentalForceLongPolling: true,
-            });
-
-            db = getFirestore(app); // You still need this to get the Firestore instance
-
-            getAnalytics(app); // Initialize Analytics (not actively used)
-          } catch (err) {
-            console.error("Firebase initialization failed:", {
-              code: err.code || "N/A",
-              message: err.message || "No error message provided",
-              error: JSON.stringify(err, null, 2),
-            });
-            alert("Firebase সংযোগে সমস্যা 😢। পরে আবার চেষ্টা করুন।");
-            document.getElementById("totalCount").innerText = "N/A";
-            document.getElementById("todayCount").innerText = "N/A";
-            document.getElementById("usedCount").innerText = "N/A";
-          }
+          const app = initializeApp(firebaseConfig);
+          db = getFirestore(app);
+          getAnalytics(app);
 
           if (!db) {
             console.error("Firestore not initialized");
@@ -539,7 +521,9 @@
           alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
           document.body.classList.add("loaded");
         }
-      })();
+      }
+
+      init(); // ✅ Call the async function
     </script>
     <style>
       body {
