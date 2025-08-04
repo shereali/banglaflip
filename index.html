@@ -11,6 +11,7 @@
     <script defer src="https://cdn.tailwindcss.com/3.4.14"></script>
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-analytics.js";
       import {
         getFirestore,
         collection,
@@ -23,7 +24,7 @@
         Timestamp,
       } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-      window.addEventListener("load", async () => {
+      document.addEventListener("DOMContentLoaded", async () => {
         try {
           const firebaseConfig = {
             apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
@@ -39,8 +40,13 @@
           try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
+            getAnalytics(app); // Initialize Analytics (not actively used)
           } catch (err) {
-            console.error("Firebase initialization failed:", err.message);
+            console.error("Firebase initialization failed:", {
+              code: err.code || "N/A",
+              message: err.message || "No error message provided",
+              error: err,
+            });
             alert("Firebase সংযোগে সমস্যা 😢। পরে আবার চেষ্টা করুন।");
             document.getElementById("totalCount").innerText = "N/A";
             document.getElementById("todayCount").innerText = "N/A";
@@ -211,7 +217,10 @@
           }
 
           async function logVisitor(toolUsed = null) {
-            if (!db) return;
+            if (!db) {
+              console.error("Cannot log visitor: Firestore not initialized");
+              return;
+            }
             const referrer = document.referrer || "Direct";
             const timestamp = new Date();
             const userAgent = navigator.userAgent;
@@ -225,16 +234,24 @@
               await Promise.race([
                 visitorPromise,
                 new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                  setTimeout(
+                    () => reject(new Error("Firestore timeout")),
+                    10000
+                  )
                 ),
               ]);
             } catch (err) {
-              console.error("Failed to log visitor:", err.message);
+              console.error("Failed to log visitor:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: err,
+              });
             }
           }
 
           async function updateStats() {
             if (!db) {
+              console.error("Cannot update stats: Firestore not initialized");
               document.getElementById("totalCount").innerText = "N/A";
               document.getElementById("todayCount").innerText = "N/A";
               document.getElementById("usedCount").innerText = "N/A";
@@ -245,7 +262,10 @@
               const snapshot = await Promise.race([
                 snapshotPromise,
                 new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                  setTimeout(
+                    () => reject(new Error("Firestore timeout")),
+                    10000
+                  )
                 ),
               ]);
               const totalCount = snapshot.size;
@@ -260,7 +280,10 @@
               const todaySnapshot = await Promise.race([
                 todaySnapshotPromise,
                 new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                  setTimeout(
+                    () => reject(new Error("Firestore timeout")),
+                    10000
+                  )
                 ),
               ]);
               animateCounter(document.getElementById("totalCount"), totalCount);
@@ -273,7 +296,11 @@
                 todaySnapshot.size
               );
             } catch (err) {
-              console.error("Failed to update stats:", err.message);
+              console.error("Failed to update stats:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: JSON.stringify(err, null, 2),
+              });
               document.getElementById("totalCount").innerText = "N/A";
               document.getElementById("todayCount").innerText = "N/A";
               document.getElementById("usedCount").innerText = "N/A";
@@ -309,7 +336,11 @@
                 1500
               );
             } catch (err) {
-              console.error("Share failed:", err.message);
+              console.error("Share failed:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: err,
+              });
               alert("শেয়ার করতে ব্যর্থ! 😢");
             }
           }
@@ -325,7 +356,7 @@
                   new Promise((_, reject) =>
                     setTimeout(
                       () => reject(new Error("Firestore timeout")),
-                      5000
+                      10000
                     )
                   ),
                 ]);
@@ -337,7 +368,11 @@
                   alert("শেয়ার করা টেক্সট পাওয়া যায়নি! 😢");
                 }
               } catch (err) {
-                console.error("Failed to load shared content:", err.message);
+                console.error("Failed to load shared content:", {
+                  code: err.code || "N/A",
+                  message: err.message || "No error message provided",
+                  error: err,
+                });
                 alert("শেয়ার করা টেক্সট লোড করতে ব্যর্থ! 😢");
               }
             }
@@ -361,7 +396,11 @@
                 inputText.focus();
                 emojiPicker.classList.add("hidden");
               } catch (err) {
-                console.error("Emoji insertion failed:", err);
+                console.error("Emoji insertion failed:", {
+                  code: err.code || "N/A",
+                  message: err.message || "No error message provided",
+                  error: err,
+                });
                 alert("ইমোজি যুক্ত করতে ব্যর্থ! 😢");
               }
             });
@@ -381,7 +420,11 @@
               outputText.textContent = reversedWords.join(" ");
               logVisitor("reverse");
             } catch (err) {
-              console.error("Reverse failed:", err);
+              console.error("Reverse failed:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: err,
+              });
               outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
             }
           });
@@ -398,7 +441,11 @@
               outputText.textContent = substituted.join("");
               logVisitor("phonetic");
             } catch (err) {
-              console.error("Phonetic conversion failed:", err);
+              console.error("Phonetic conversion failed:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: err,
+              });
               outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
             }
           });
@@ -425,11 +472,19 @@
                   );
                 })
                 .catch((err) => {
-                  console.error("Failed to copy:", err);
+                  console.error("Failed to copy:", {
+                    code: err.code || "N/A",
+                    message: err.message || "No error message provided",
+                    error: err,
+                  });
                   alert("কপি করতে ব্যর্থ! 😢");
                 });
             } catch (err) {
-              console.error("Copy failed:", err);
+              console.error("Copy failed:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: err,
+              });
               alert("কপি করতে ব্যর্থ! 😢");
             }
           });
@@ -454,7 +509,11 @@
                 }, 1000);
               }
             } catch (err) {
-              console.error("Paste failed:", err);
+              console.error("Paste failed:", {
+                code: err.code || "N/A",
+                message: err.message || "No error message provided",
+                error: err,
+              });
               alert(
                 "পেস্ট করতে ব্যর্থ। অনুগ্রহ করে ব্রাউজার অনুমতি দিন বা HTTPS ব্যবহার করুন। 😢"
               );
@@ -466,7 +525,11 @@
           await loadSharedContent();
           document.body.classList.add("loaded");
         } catch (err) {
-          console.error("Main script error:", err);
+          console.error("Main script error:", {
+            code: err.code || "N/A",
+            message: err.message || "No error message provided",
+            error: err,
+          });
           alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
           document.body.classList.add("loaded");
         }
