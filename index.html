@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="bn" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>বাংলা রিভার্স ও ফনেটিক টুল 😊</title>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/grapheme-splitter@1.0.4/index.min.js"
+    ></script>
+    <script defer src="https://cdn.tailwindcss.com/3.4.14"></script>
+    <script
+      defer
+      src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"
+    ></script>
+    <script
+      defer
+      src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"
+    ></script>
+    <style>
+      body {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      }
+      body.loaded {
+        opacity: 1;
+      }
+      #emojiPicker {
+        max-height: 150px;
+        overflow-y: auto;
+      }
+      @media (max-width: 640px) {
+        #emojiPicker {
+          max-width: 100%;
+          right: 0;
+          left: 0;
+          margin: 0 auto;
+        }
+      }
+      .counter-circle {
+        transition: transform 0.2s ease-in-out;
+      }
+      .counter-circle:hover {
+        transform: scale(1.05);
+      }
+      .footer-bg {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-b from-gray-50 to-gray-200 dark:from-gray-900 dark:to-gray-800 min-h-screen font-sans flex flex-col items-center transition"
+  >
+    <main
+      class="w-full max-w-3xl mx-auto px-4 sm:px-6 pt-8 pb-28 sm:pb-32 flex flex-col items-center gap-6"
+    >
+      <h1
+        class="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white text-center"
+      >
+        বাংলা রিভার্স এবং ফনেটিক টুল ✨
+      </h1>
+
+      <div class="w-full relative">
+        <div class="flex flex-wrap gap-3 mb-4 justify-start">
+          <button
+            id="pasteBtn"
+            class="bg-emerald-500 text-white px-4 py-2 rounded-full shadow-md hover:bg-emerald-600 hover:scale-105 transition flex items-center gap-2 text-sm sm:text-base"
+            aria-label="Paste clipboard text"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                d="M3 3a2 2 0 012-2h4a1 1 0 011 1v1h5a2 2 0 012 2v2h-2V5H5v10h5v2H5a2 2 0 01-2-2V3zm13 7v4h3l-4 4-4-4h3v-4h2z"
+              />
+            </svg>
+            ক্লিক টু পেস্ট
+          </button>
+          <button
+            id="emojiToggleBtn"
+            class="bg-yellow-500 text-white px-4 py-2 rounded-full shadow-md hover:bg-yellow-600 hover:scale-105 transition flex items-center gap-2 text-sm sm:text-base"
+            aria-label="Toggle emoji picker"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-3-9a1 1 0 100-2 1 1 0 000 2zm6 0a1 1 0 100-2 1 1 0 000 2zm-3 4c-2 0-3.5 1-3.5 2s1.5 2 3.5 2 3.5-1 3.5-2-1.5-2-3.5-2z"
+              />
+            </svg>
+            ইমোজি
+          </button>
+        </div>
+
+        <div
+          id="emojiPicker"
+          class="absolute top-12 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 flex flex-wrap gap-2 z-50 hidden"
+        >
+          <button class="emoji-btn text-xl" data-emoji="😊">😊</button>
+          <button class="emoji-btn text-xl" data-emoji="👍">👍</button>
+          <button class="emoji-btn text-xl" data-emoji="❤️">❤️</button>
+          <button class="emoji-btn text-xl" data-emoji="😂">😂</button>
+          <button class="emoji-btn text-xl" data-emoji="😎">😎</button>
+          <button class="emoji-btn text-xl" data-emoji="😢">😢</button>
+          <button class="emoji-btn text-xl" data-emoji="😍">😍</button>
+          <button class="emoji-btn text-xl" data-emoji="🎉">🎉</button>
+        </div>
+
+        <textarea
+          id="inputText"
+          placeholder="এখানে বাংলা লিখুন... 😄"
+          class="w-full h-36 sm:h-48 p-4 text-base sm:text-lg rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-lg resize-none transition focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500"
+          aria-label="Input text for processing"
+        ></textarea>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-4 w-full justify-center">
+        <button
+          id="reverseBtn"
+          class="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-base sm:text-lg font-semibold rounded-xl shadow-lg transition transform hover:scale-105"
+          aria-label="Reverse text"
+        >
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6a6 6 0 11-6-6z" />
+          </svg>
+          রিভার্স করুণ
+        </button>
+        <button
+          id="phoneticBtn"
+          class="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-base sm:text-lg font-semibold rounded-xl shadow-lg transition transform hover:scale-105"
+          aria-label="Phonetic conversion"
+        >
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M9 2a3 3 0 00-3 3v2.5A2.5 2.5 0 003.5 10a2.5 2.5 0 000 5A2.5 2.5 0 006 17.5V19a3 3 0 003 3h1V2H9zm5 0v20h1a3 3 0 003-3v-1.5a2.5 2.5 0 002.5-2.5 2.5 2.5 0 000-5A2.5 2.5 0 0018 7.5V5a3 3 0 00-3-3h-1z"
+            />
+          </svg>
+          ফনেটিকে রূপান্তর করুণ
+        </button>
+      </div>
+
+      <div class="w-full relative">
+        <pre
+          id="outputText"
+          class="min-h-[120px] sm:min-h-[140px] p-4 sm:p-5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-base sm:text-lg text-gray-900 dark:text-white whitespace-pre-wrap break-words shadow-lg"
+          aria-label="Output text"
+        ></pre>
+        <button
+          id="copyIcon"
+          class="absolute top-3 right-16 p-2 bg-blue-100 dark:bg-blue-600 text-blue-800 dark:text-white rounded-full hover:bg-blue-200 dark:hover:bg-blue-500 transition shadow-md"
+          aria-label="Copy output text"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+          </svg>
+        </button>
+        <button
+          id="shareBtn"
+          class="absolute top-3 right-3 p-2 bg-teal-100 dark:bg-teal-600 text-teal-800 dark:text-white rounded-full hover:bg-teal-200 dark:hover:bg-teal-500 transition shadow-md"
+          aria-label="Share output text"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+        </button>
+        <div
+          id="copiedTooltip"
+          class="absolute top-3 right-28 bg-green-500 text-white px-3 py-1 rounded-md text-sm opacity-0 pointer-events-none transition-opacity duration-300"
+        >
+          কপি হয়েছে! ✅
+        </div>
+        <div
+          id="sharedTooltip"
+          class="absolute top-3 right-28 bg-teal-500 text-white px-3 py-1 rounded-md text-sm opacity-0 pointer-events-none transition-opacity duration-300"
+        >
+          শেয়ার লিঙ্ক কপি হয়েছে! 🔗
+        </div>
+      </div>
+    </main>
+
+    <footer
+      class="w-full bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-md mt-10"
+    >
+      <div class="max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
+        <!-- Visitor Stats (Top, Centered) -->
+        <div class="flex justify-center flex-wrap gap-4">
+          <!-- Today -->
+          <div
+            class="flex flex-col items-center bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200 rounded-lg p-3 w-24 shadow border border-indigo-300 dark:border-indigo-600 text-center"
+          >
+            <span class="text-xs font-medium">আজকের ভিজিট</span>
+            <span id="todayCount" class="text-base font-bold">0</span>
+            <span class="text-indigo-400 dark:text-indigo-300 text-lg">👀</span>
+          </div>
+
+          <!-- Total -->
+          <div
+            class="flex flex-col items-center bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-200 rounded-lg p-3 w-24 shadow border border-emerald-300 dark:border-emerald-600 text-center"
+          >
+            <span class="text-xs font-medium">টোটাল ভিজিট</span>
+            <span id="totalCount" class="text-base font-bold">0</span>
+            <span class="text-emerald-400 dark:text-emerald-300 text-lg"
+              >📊</span
+            >
+          </div>
+
+          <!-- Today's Users -->
+          <div
+            class="flex flex-col items-center bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-200 rounded-lg p-3 w-24 shadow border border-rose-300 dark:border-rose-600 text-center"
+          >
+            <span class="text-xs font-medium">আজকের ব্যবহারকারী</span>
+            <span id="usedCount" class="text-base font-bold">0</span>
+            <span class="text-rose-400 dark:text-rose-300 text-lg">🙋</span>
+          </div>
+        </div>
+
+        <!-- Main Footer Grid -->
+        <div
+          class="flex flex-col lg:flex-row justify-between items-start gap-8 w-full"
+        >
+          <!-- QR Code Section -->
+          <div class="flex flex-col gap-4 w-full lg:w-1/2">
+            <h2
+              class="text-gray-700 dark:text-gray-200 font-semibold text-base text-center lg:text-left"
+            >
+              Contact by QR Code
+            </h2>
+            <div class="flex flex-wrap justify-center lg:justify-start gap-4">
+              <img
+                src="img/qr_call_01749240901.png"
+                alt="QR Code 1"
+                class="w-24 h-24 object-contain border border-gray-300 rounded-md"
+              />
+              <img
+                src="img/qr_call_01860347591.png"
+                alt="QR Code 2"
+                class="w-24 h-24 object-contain border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+
+          <!-- Footer Links & Copyright -->
+          <div
+            class="flex flex-col gap-4 text-sm w-full lg:w-1/2 items-center lg:items-end"
+          >
+            <div class="flex flex-wrap justify-center lg:justify-end gap-3">
+              <a
+                href="https://www.kakkhopath.com"
+                target="_blank"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+                >Visit Kakkhopath</a
+              >
+              <a
+                href="https://www.deshicoder.com"
+                target="_blank"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
+                >Visit Deshicoder</a
+              >
+            </div>
+            <p
+              class="text-gray-500 dark:text-gray-400 text-center lg:text-right"
+            >
+              &copy; 2025 <strong>Deshicoder.com</strong>. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      window.addEventListener("load", () => {
+        try {
+          const firebaseConfig = {
+            apiKey: "AIzaSyDEKQK3U7S6jLcZ9PpR79tV4nT5FoIIyeA",
+            authDomain: "bangla-reverse-tool.firebaseapp.com",
+            projectId: "bangla-reverse-tool",
+            storageBucket: "bangla-reverse-tool.firebasestorage.app",
+            messagingSenderId: "585564069992",
+            appId: "1:585564069992:web:6725087dc428f164ca1bdd",
+            measurementId: "G-KBL37R71RN",
+          };
+
+          let db;
+          try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+          } catch (err) {
+            console.error("Firebase initialization failed:", err);
+            alert("Firebase সংযোগে সমস্যা 😢। পরে আবার চেষ্টা করুন।");
+            document.getElementById("totalCount").innerText = "N/A";
+            document.getElementById("todayCount").innerText = "N/A";
+            document.getElementById("usedCount").innerText = "N/A";
+          }
+
+          const inputText = document.getElementById("inputText");
+          const outputText = document.getElementById("outputText");
+          const reverseBtn = document.getElementById("reverseBtn");
+          const phoneticBtn = document.getElementById("phoneticBtn");
+          const copyIcon = document.getElementById("copyIcon");
+          const shareBtn = document.getElementById("shareBtn");
+          const copiedTooltip = document.getElementById("copiedTooltip");
+          const sharedTooltip = document.getElementById("sharedTooltip");
+          const pasteBtn = document.getElementById("pasteBtn");
+          const emojiToggleBtn = document.getElementById("emojiToggleBtn");
+          const emojiPicker = document.getElementById("emojiPicker");
+
+          if (!window.GraphemeSplitter) {
+            console.error("GraphemeSplitter not loaded");
+            alert(
+              "টেক্সট প্রসেসিং লাইব্রেরি লোড হয়নি 😢। পুনরায় চেষ্টা করুন।"
+            );
+            return;
+          }
+          const splitter = new GraphemeSplitter();
+          const punctuationRegex = /[.,'’"?!ঃঃ।]/;
+          const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{200D}\u{FE0F}]/u;
+
+          const phoneticMap = {
+            ক: "খ",
+            খ: "ক",
+            গ: "ঘ",
+            ঘ: "গ",
+            চ: "ছ",
+            ছ: "চ",
+            জ: "ঝ",
+            ঝ: "জ",
+            ট: "ঠ",
+            ঠ: "ট",
+            ড: "ঢ",
+            ঢ: "ড",
+            ত: "থ",
+            থ: "ত",
+            দ: "ধ",
+            ধ: "দ",
+            ন: "ণ",
+            ণ: "ন",
+            প: "ফ",
+            ফ: "প",
+            ব: "ভ",
+            ভ: "ব",
+            ম: "ং",
+            "ং": "ম",
+            স: "শ",
+            শ: "স",
+            ষ: "স",
+            য: "য়",
+            য়: "য",
+            র: "ড়",
+            ড়: "র",
+            ঢ়: "ড়",
+            হ: "ঃ",
+            "ঃ": "হ",
+            ঙ: "ং",
+            ৎ: "ত",
+
+            অ: "আ",
+            আ: "অ",
+            ই: "ঈ",
+            ঈ: "ই",
+            উ: "ঊ",
+            ঊ: "উ",
+            এ: "ঐ",
+            ঐ: "এ",
+            ও: "ঔ",
+            ঔ: "ও",
+
+            "া": "ি",
+            "ি": "া",
+            "ী": "ু",
+            "ু": "ী",
+            "ূ": "ে",
+            "ে": "ূ",
+            "ৈ": "ো",
+            "ো": "ৈ",
+            "ৌ": "ঔ",
+
+            ক্ষ: "ক্স",
+            ক্স: "ক্ষ",
+            জ্ঞ: "জ্ন",
+            জ্ন: "জ্ঞ",
+            ত্র: "ত্ৰ",
+            ত্ৰ: "ত্র",
+            শ্র: "ষ্র",
+            ষ্র: "শ্র",
+
+            "্য": "য়",
+            য়: "্য",
+            "্র": "র",
+            "্": "",
+
+            "িয়ে": "িয়া",
+            "িয়া": "িয়ে",
+            তে: "টা",
+            টা: "তে",
+            রা: "গো",
+            গো: "রা",
+          };
+
+          function easeOutQuad(t) {
+            return t * (2 - t);
+          }
+
+          function animateCounter(element, targetValue) {
+            let currentValue = 0;
+            const duration = 2000; // Animation duration in ms
+            const startTime = performance.now();
+            const update = (currentTime) => {
+              const elapsed = currentTime - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const easedProgress = easeOutQuad(progress);
+              currentValue = Math.floor(easedProgress * targetValue);
+              element.textContent = currentValue;
+              if (progress < 1) {
+                requestAnimationFrame(update);
+              } else {
+                element.textContent = targetValue;
+              }
+            };
+            requestAnimationFrame(update);
+          }
+
+          function phoneticSubstitute(graphemes) {
+            const result = [];
+            for (let i = 0; i < graphemes.length; i++) {
+              if (i + 1 < graphemes.length) {
+                const pair = graphemes[i] + graphemes[i + 1];
+                if (phoneticMap[pair]) {
+                  result.push(phoneticMap[pair]);
+                  i++;
+                  continue;
+                }
+              }
+              result.push(phoneticMap[graphemes[i]] || graphemes[i]);
+            }
+            return result;
+          }
+
+          function reverseWordPreservePunctuation(word) {
+            let prefix = "",
+              suffix = "",
+              coreWord = word;
+            while (
+              coreWord.length &&
+              punctuationRegex.test(coreWord[coreWord.length - 1])
+            ) {
+              suffix = coreWord[coreWord.length - 1] + suffix;
+              coreWord = coreWord.slice(0, -1);
+            }
+            while (coreWord.length && punctuationRegex.test(coreWord[0])) {
+              prefix += coreWord[0];
+              coreWord = coreWord.slice(1);
+            }
+            const graphemes = splitter.splitGraphemes(coreWord);
+            const reversedCore = graphemes.reverse().join("");
+            return prefix + reversedCore + suffix;
+          }
+
+          async function logVisitor(toolUsed = null) {
+            if (!db) return;
+            const referrer = document.referrer || "Direct";
+            const timestamp = new Date();
+            const userAgent = navigator.userAgent;
+            try {
+              const visitorPromise = db.collection("visitors").add({
+                referrer,
+                userAgent,
+                toolUsed,
+                timestamp: firebase.firestore.Timestamp.fromDate(timestamp),
+              });
+              await Promise.race([
+                visitorPromise,
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                ),
+              ]);
+            } catch (err) {
+              console.error("Failed to log visitor:", err);
+            }
+          }
+
+          async function updateStats() {
+            if (!db) {
+              document.getElementById("totalCount").innerText = "N/A";
+              document.getElementById("todayCount").innerText = "N/A";
+              document.getElementById("usedCount").innerText = "N/A";
+              return;
+            }
+            try {
+              const snapshotPromise = db.collection("visitors").get();
+              const snapshot = await Promise.race([
+                snapshotPromise,
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                ),
+              ]);
+              const totalCount = snapshot.size;
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const todaySnapshotPromise = db
+                .collection("visitors")
+                .where(
+                  "timestamp",
+                  ">=",
+                  firebase.firestore.Timestamp.fromDate(today)
+                )
+                .get();
+              const todaySnapshot = await Promise.race([
+                todaySnapshotPromise,
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error("Firestore timeout")), 5000)
+                ),
+              ]);
+              animateCounter(document.getElementById("totalCount"), totalCount);
+              animateCounter(
+                document.getElementById("todayCount"),
+                todaySnapshot.size
+              );
+              animateCounter(
+                document.getElementById("usedCount"),
+                todaySnapshot.size
+              );
+            } catch (err) {
+              console.error("Failed to update stats:", err);
+              document.getElementById("totalCount").innerText = "N/A";
+              document.getElementById("todayCount").innerText = "N/A";
+              document.getElementById("usedCount").innerText = "N/A";
+            }
+          }
+
+          async function handleShare() {
+            try {
+              const input = inputText.value.trim();
+              if (!input) {
+                alert("শেয়ার করার জন্য কোনো টেক্সট নেই! 😕");
+                return;
+              }
+              const words = input.split(/\s+/);
+              const reversedWords = words.map((word) =>
+                reverseWordPreservePunctuation(word)
+              );
+              const reversedText = reversedWords.join(" ");
+              if (!db) {
+                alert("Firebase সংযোগে সমস্যা 😢। শেয়ার করা যায়নি।");
+                return;
+              }
+              const shareDoc = await db.collection("shares").add({
+                inputText: input,
+                reversedText: reversedText,
+                timestamp: firebase.firestore.Timestamp.fromDate(new Date()),
+              });
+              const shareUrl = `${window.location.origin}${window.location.pathname}?shareId=${shareDoc.id}`;
+              await navigator.clipboard.writeText(shareUrl);
+              sharedTooltip.classList.add("opacity-100");
+              setTimeout(
+                () => sharedTooltip.classList.remove("opacity-100"),
+                1500
+              );
+            } catch (err) {
+              console.error("Share failed:", err);
+              alert("শেয়ার করতে ব্যর্থ! 😢");
+            }
+          }
+
+          async function loadSharedContent() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get("shareId");
+            if (shareId && db) {
+              try {
+                const docRef = db.collection("shares").doc(shareId);
+                const docSnap = await Promise.race([
+                  docRef.get(),
+                  new Promise((_, reject) =>
+                    setTimeout(
+                      () => reject(new Error("Firestore timeout")),
+                      5000
+                    )
+                  ),
+                ]);
+                if (docSnap.exists) {
+                  const data = docSnap.data();
+                  inputText.value = data.inputText;
+                  outputText.textContent = data.reversedText;
+                } else {
+                  alert("শেয়ার করা টেক্সট পাওয়া যায়নি! 😢");
+                }
+              } catch (err) {
+                console.error("Failed to load shared content:", err);
+                alert("শেয়ার করা টেক্সট লোড করতে ব্যর্থ! 😢");
+              }
+            }
+          }
+
+          emojiToggleBtn.addEventListener("click", () => {
+            emojiPicker.classList.toggle("hidden");
+          });
+
+          document.querySelectorAll(".emoji-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              try {
+                const emoji = btn.getAttribute("data-emoji");
+                const startPos = inputText.selectionStart;
+                const endPos = inputText.selectionEnd;
+                const text = inputText.value;
+                inputText.value =
+                  text.substring(0, startPos) + emoji + text.substring(endPos);
+                inputText.selectionStart = inputText.selectionEnd =
+                  startPos + emoji.length;
+                inputText.focus();
+                emojiPicker.classList.add("hidden");
+              } catch (err) {
+                console.error("Emoji insertion failed:", err);
+                alert("ইমোজি যুক্ত করতে ব্যর্থ! 😢");
+              }
+            });
+          });
+
+          reverseBtn.addEventListener("click", () => {
+            try {
+              const input = inputText.value.trim();
+              if (!input) {
+                outputText.textContent = "কোনো টেক্সট নেই! 😕";
+                return;
+              }
+              const words = input.split(/\s+/);
+              const reversedWords = words.map((word) =>
+                reverseWordPreservePunctuation(word)
+              );
+              outputText.textContent = reversedWords.join(" ");
+              logVisitor("reverse");
+            } catch (err) {
+              console.error("Reverse failed:", err);
+              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
+            }
+          });
+
+          phoneticBtn.addEventListener("click", () => {
+            try {
+              const input = inputText.value.trim();
+              if (!input) {
+                outputText.textContent = "কোনো টেক্সট নেই! 😕";
+                return;
+              }
+              const graphemes = splitter.splitGraphemes(input);
+              const substituted = phoneticSubstitute(graphemes);
+              outputText.textContent = substituted.join("");
+              logVisitor("phonetic");
+            } catch (err) {
+              console.error("Phonetic conversion failed:", err);
+              outputText.textContent = "প্রক্রিয়াকরণে ত্রুটি! 😢";
+            }
+          });
+
+          copyIcon.addEventListener("click", () => {
+            try {
+              let textToCopy = outputText.textContent;
+              if (!textToCopy) {
+                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
+                return;
+              }
+              textToCopy = textToCopy.replace(emojiRegex, "").trim();
+              if (!textToCopy) {
+                alert("কপি করার জন্য কোনো টেক্সট নেই! 😕");
+                return;
+              }
+              navigator.clipboard
+                .writeText(textToCopy)
+                .then(() => {
+                  copiedTooltip.classList.add("opacity-100");
+                  setTimeout(
+                    () => copiedTooltip.classList.remove("opacity-100"),
+                    1500
+                  );
+                })
+                .catch((err) => {
+                  console.error("Failed to copy:", err);
+                  alert("কপি করতে ব্যর্থ! 😢");
+                });
+            } catch (err) {
+              console.error("Copy failed:", err);
+              alert("কপি করতে ব্যর্থ! 😢");
+            }
+          });
+
+          shareBtn.addEventListener("click", handleShare);
+
+          pasteBtn.addEventListener("click", async () => {
+            try {
+              if (navigator.clipboard && window.isSecureContext) {
+                const text = await navigator.clipboard.readText();
+                inputText.value = text;
+                inputText.focus();
+              } else {
+                const tempInput = document.createElement("textarea");
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                alert("দয়া করে এখন Ctrl+V চাপুন অথবা Paste করুন 📋");
+                setTimeout(() => {
+                  inputText.value = tempInput.value;
+                  document.body.removeChild(tempInput);
+                  inputText.focus();
+                }, 1000);
+              }
+            } catch (err) {
+              console.error("Paste failed:", err);
+              alert(
+                "পেস্ট করতে ব্যর্থ। অনুগ্রহ করে ব্রাউজার অনুমতি দিন বা HTTPS ব্যবহার করুন। 😢"
+              );
+            }
+          });
+
+          logVisitor();
+          updateStats();
+          loadSharedContent();
+          document.body.classList.add("loaded");
+        } catch (err) {
+          console.error("Main script error:", err);
+          alert("পৃষ্ঠা লোডে ত্রুটি! 😢 পুনরায় চেষ্টা করুন।");
+          document.body.classList.add("loaded");
+        }
+      });
+    </script>
+  </body>
+</html>
