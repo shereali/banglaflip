@@ -26,6 +26,20 @@
 
       document.addEventListener("DOMContentLoaded", async () => {
         try {
+          // Check if Firebase functions are defined
+          if (
+            !initFirebase ||
+            !logVisitor ||
+            !updateStats ||
+            !handleShare ||
+            !loadSharedContent
+          ) {
+            console.error("Firebase functions not loaded");
+            alert("ফায়ারবেস ফাংশন লোড হয়নি 😢। পুনরায় চেষ্টা করুন।");
+            document.body.classList.add("loaded");
+            return;
+          }
+
           const db = initFirebase();
 
           const phoneticMap = {
@@ -199,6 +213,10 @@
       .counter-circle:hover {
         transform: scale(1.05);
       }
+      #outputText {
+        white-space: pre-wrap;
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body
@@ -264,7 +282,7 @@
 
         <textarea
           id="inputText"
-          placeholder="এখানে বাংলা লিখুন... 😄"
+          placeholder="এখানে বাংলা লিখুন... 😄&#10;- উদাহরণ: বাংলা সুন্দর।&#10;- আরেকটি লাইন।"
           class="w-full h-36 sm:h-48 p-4 text-base sm:text-lg rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-lg resize-none transition focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500"
           aria-label="Input text for processing"
         ></textarea>

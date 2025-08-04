@@ -21,44 +21,108 @@ export function animateCounter(element, targetValue) {
   requestAnimationFrame(update);
 }
 
-export function phoneticSubstitute(graphemes, phoneticMap) {
-  const result = [];
-  for (let i = 0; i < graphemes.length; i++) {
-    if (i + 1 < graphemes.length) {
-      const pair = graphemes[i] + graphemes[i + 1];
-      if (phoneticMap[pair]) {
-        result.push(phoneticMap[pair]);
-        i++;
-        continue;
-      }
-    }
-    result.push(phoneticMap[graphemes[i]] || graphemes[i]);
-  }
-  return result;
-}
-
 export function reverseWordPreservePunctuation(
-  word,
+  text,
   splitter,
   punctuationRegex
 ) {
-  let prefix = "",
-    suffix = "",
-    coreWord = word;
-  while (
-    coreWord.length &&
-    punctuationRegex.test(coreWord[coreWord.length - 1])
-  ) {
-    suffix = coreWord[coreWord.length - 1] + suffix;
-    coreWord = coreWord.slice(0, -1);
-  }
-  while (coreWord.length && punctuationRegex.test(coreWord[0])) {
-    prefix += coreWord[0];
-    coreWord = coreWord.slice(1);
-  }
-  const graphemes = splitter.splitGraphemes(coreWord);
-  const reversedCore = graphemes.reverse().join("");
-  return prefix + reversedCore + suffix;
+  // Split text into lines to preserve paragraphs
+  const lines = text.split("\n");
+  const reversedLines = lines.map((line) => {
+    // Detect bullet points (e.g., -, *, •) at the start of the line
+    let bullet = "";
+    let trimmedLine = line.trim();
+    if (trimmedLine.match(/^[-*•]\s/)) {
+      bullet = trimmedLine.substring(0, 2); // Preserve bullet and space
+      trimmedLine = trimmedLine.substring(2); // Remove bullet for processing
+    }
+
+    // Split line into words, preserving spaces and punctuation
+    const words = trimmedLine.split(/(\s+)/); // Split on whitespace, keeping it
+    const reversedWords = words.map((word) => {
+      if (word.match(/^\s+$/)) {
+        return word; // Preserve spaces
+      }
+      let prefix = "",
+        suffix = "",
+        coreWord = word;
+      // Extract prefix punctuation
+      while (coreWord.length && punctuationRegex.test(coreWord[0])) {
+        prefix += coreWord[0];
+        coreWord = coreWord.slice(1);
+      }
+      // Extract suffix punctuation
+      while (
+        coreWord.length &&
+        punctuationRegex.test(coreWord[coreWord.length - 1])
+      ) {
+        suffix = coreWord[coreWord.length - 1] + suffix;
+        coreWord = coreWord.slice(0, -1);
+      }
+      // Reverse the core word
+      const graphemes = splitter.splitGraphemes(coreWord);
+      const reversedCore = graphemes.reverse().join("");
+      return prefix + reversedCore + suffix;
+    });
+
+    // Reattach bullet point (if any)
+    return bullet + reversedWords.join("");
+  });
+
+  // Join lines back with newlines
+  return reversedLines.join("\n");
+}
+
+export function phoneticSubstitute(
+  text,
+  phoneticMap,
+  splitter,
+  punctuationRegex
+) {
+  // Split text into lines to preserve paragraphs
+  const lines = text.split("\n");
+  const convertedLines = lines.map((line) => {
+    // Detect bullet points (e.g., -, *, •) at the start of the line
+    let bullet = "";
+    let trimmedLine = line.trim();
+    if (trimmedLine.match(/^[-*•]\s/)) {
+      bullet = trimmedLine.substring(0, 2); // Preserve bullet and space
+      trimmedLine = trimmedLine.substring(2); // Remove bullet for processing
+    }
+
+    // Split line into words, preserving spaces
+    const words = trimmedLine.split(/(\s+)/);
+    const convertedWords = words.map((word) => {
+      if (word.match(/^\s+$/)) {
+        return word; // Preserve spaces
+      }
+      // Split word into graphemes
+      const graphemes = splitter.splitGraphemes(word);
+      const result = [];
+      for (let i = 0; i < graphemes.length; i++) {
+        if (punctuationRegex.test(graphemes[i])) {
+          result.push(graphemes[i]); // Preserve punctuation
+          continue;
+        }
+        if (i + 1 < graphemes.length) {
+          const pair = graphemes[i] + graphemes[i + 1];
+          if (phoneticMap[pair]) {
+            result.push(phoneticMap[pair]);
+            i++;
+            continue;
+          }
+        }
+        result.push(phoneticMap[graphemes[i]] || graphemes[i]);
+      }
+      return result.join("");
+    });
+
+    // Reattach bullet point (if any)
+    return bullet + convertedWords.join("");
+  });
+
+  // Join lines back with newlines
+  return convertedLines.join("\n");
 }
 
 export function attachUIListeners({
@@ -115,11 +179,11 @@ export function attachUIListeners({
         outputText.textContent = "কোনো টেক্সট নেই! 😕";
         return;
       }
-      const words = input.split(/\s+/);
-      const reversedWords = words.map((word) =>
-        reverseWordPreservePunctuation(word, splitter, punctuationRegex)
+      outputText.textContent = reverseWordPreservePunctuation(
+        input,
+        splitter,
+        punctuationRegex
       );
-      outputText.textContent = reversedWords.join(" ");
       if (logVisitorCallback) {
         try {
           await logVisitorCallback("reverse");
@@ -148,9 +212,12 @@ export function attachUIListeners({
         outputText.textContent = "কোনো টেক্সট নেই! 😕";
         return;
       }
-      const graphemes = splitter.splitGraphemes(input);
-      const substituted = phoneticSubstitute(graphemes, phoneticMap);
-      outputText.textContent = substituted.join("");
+      outputText.textContent = phoneticSubstitute(
+        input,
+        phoneticMap,
+        splitter,
+        punctuationRegex
+      );
       if (logVisitorCallback) {
         try {
           await logVisitorCallback("phonetic");
@@ -204,7 +271,7 @@ export function attachUIListeners({
         message: err.message || "No error message provided",
         error: JSON.stringify(err, null, 2),
       });
-      alert("কপি করতে ব্যর্ছ! 😢");
+      alert("কপি করতে ব্যর্থ! 😢");
     }
   });
 
