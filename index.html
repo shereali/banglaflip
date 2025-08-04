@@ -8,8 +8,7 @@
       defer
       src="https://cdn.jsdelivr.net/npm/grapheme-splitter@1.0.4/index.min.js"
     ></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script defer src="https://cdn.tailwindcss.com/3.4.14"></script>
     <script type="module">
       import {
         initFirebase,
@@ -17,13 +16,13 @@
         updateStats,
         handleShare,
         loadSharedContent,
-      } from "./js/firebase.js";
+      } from "./firebase.js";
       import {
         animateCounter,
         phoneticSubstitute,
         reverseWordPreservePunctuation,
         attachUIListeners,
-      } from "./js/script.js";
+      } from "./script.js";
 
       document.addEventListener("DOMContentLoaded", async () => {
         try {
@@ -213,6 +212,13 @@
       >
         বাংলা রিভার্স এবং ফনেটিক টুল ✨
       </h1>
+      <div
+        class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-4 mt-4 rounded-lg text-gray-700 dark:text-gray-300 text-sm sm:text-base text-center"
+      >
+        বিশেষ দ্রষ্টব্যঃ রিভার্স অথবা ফনেটিক রুপান্তর ব্যবহার করে গালিগালাজ করলে
+        সেই দায়ভার আমি নিব না। আর ঐ পাপের ভাগিদারও আমি হব না। তাই যা লিখবেন নিজ
+        দায়িত্বে লিখবেন এর জন্য ডেভেলপার হিসেবে আমি নিজের দায়মুক্তি নিয়ে নিচ্ছি।
+      </div>
 
       <div class="w-full relative">
         <div class="flex flex-wrap gap-3 mb-4 justify-start">
